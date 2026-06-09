@@ -4,7 +4,7 @@
 
 **Contribution Number:** 1
 **Student:** Anshu Anjna
-**Issue:** (https://github.com/actualbudget/actual/issues/8134)
+**Issue:** https://github.com/actualbudget/actual/issues/8134
 **Status:** Phase I - In Progress
 
 ---
