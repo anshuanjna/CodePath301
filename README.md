@@ -5,7 +5,7 @@
 **Contribution Number:** #8134
 **Student:** Anshu Anjna
 **Issue:** https://github.com/actualbudget/actual/issues/8134
-**Status:** Phase I - In Progress
+**Status:** Phase 2 - In Progress
 
 ---
 
@@ -44,19 +44,30 @@ Possibly the PayeeTable or ManagePayees component on the frontend that displays 
 
 ### Environment Setup
 
-[Notes on setting up your local development environment - challenges you faced, how you solved them]
+I had to set up the Docker and install and login to it. 
+
+I also had to look into installing yarn, which I have never used and 
+when I tried running "npm install yarn", I got the error: "yarn: command not found." I asked claude to help me out and I had to run corepack enable after installing Node 22+, which makes the project's pinned Yarn available.
+
+I also tried to activate my virtual environment: source venv/bin/activate. But that failed because I realised that Actual Budget is a TypeScript/Node monorepo and doesn't use python virtual environment. 
 
 ### Steps to Reproduce
 
-1. [Step 1]
-2. [Step 2]
-3. [Observed result]
+1. Start Docker and open a budget file.
+2. Create an account and a payee
+3. Create a schedule for that payee, in the Schedules view, add a schedule, set its payee to "Tax Payment", and give it a near-term date with a limited or one-time recurrence so it can complete.
+4. Post the scheduled transaction(s) so the schedule moves to the Completed state. Confirm it shows as completed in the Schedules view.
+5. Confirm the payee has no manually-created rules: open the Rules view and verify there are none for "Tax Payment".
+6. Open the Payees page (Manage Payees) and observe the rule count next to "Tax Payment".
+7. Click into that payee's rules and compare the displayed count to the number of rules actually shown.
+8. Expected: The rule count is 0, because there are no active rules (the only associated rule belongs to a completed schedule).
+9. Actual: The rule count shows 1 (or one per completed schedule), even though clicking in reveals no rules.
 
 ### Reproduction Evidence
 
-- **Commit showing reproduction:** [Link to commit in your fork]
+- **Commit showing reproduction:** https://github.com/anshuanjna/actual
 - **Screenshots/logs:** [If applicable]
-- **My findings:** [What you discovered during reproduction]
+- **My findings:** The inflated count comes from the server, not the UI. The count is displayed in packages/desktop-client/src/components/payees/ManagePayees.tsx / PayeeTableRow.tsx via the ruleCount prop, but it is computed by a handler in packages/loot-core/src/server/. That handler counts all rules referencing a payee without excluding the hidden rules that back schedules. 
 
 ---
 
@@ -64,30 +75,39 @@ Possibly the PayeeTable or ManagePayees component on the frontend that displays 
 
 ### Analysis
 
-[Your analysis of the root cause - what's causing the issue?]
+Schedules in Actual are implemented as hidden rules (each schedule has an associated rule carrying a link-schedule action that references the schedule's payee). The per-payee rule count computed on the server counts all rules referencing a payee and does not exclude rules belonging to schedules, in particular, rules belonging to completed schedules. As a result, a payee whose only associated rules are completed-schedule rules shows a non-zero count despite having no active, user-visible rules.
 
 ### Proposed Solution
 
-[High-level description of your fix approach]
+Modify the server-side rule-counting logic so it excludes rules linked to completed schedules. Two candidate approaches, I will confirm the intended behavior with maintainers on the issue before coding:
+
+(a) Exclude only rules linked to completed schedules (literal reading of the issue title).
+(b) Exclude all schedule-linked rules from the count (if schedule rules were never meant to appear in this count at all).
 
 ### Implementation Plan
 
 Using UMPIRE framework (adapted):
 
-**Understand:** [Restate the problem]
+**Understand:** The Payees page rule count is inflated because it counts the hidden rules that back completed schedules. Since schedules are implemented as rules in Actual, those rules are included in a payee's count even though the schedule is no longer active and the user sees no real rules. The count should reflect only active, user-relevant rules.
 
-**Match:** [What similar patterns/solutions exist in the codebase?]
+**Match:** link-schedule is the action type marking a rule as schedule-backed, find where Actual already distinguishes these rules elsewhere.
+
+2. packages/loot-core/src/shared/schedules.ts already contains schedule-status logic (including "completed"); reuse its definition of completed.
+
+3. Mirror the filtering style of the existing rule queries in loot-core/src/server/.
 
 **Plan:** [Step-by-step implementation plan]
-1. [Modify file X to do Y]
-2. [Add function Z]
-3. [Update tests]
+1. Locate the server handler in packages/loot-core/src/server/ that produces per-payee rule counts.
+2. Modify the query/aggregation to exclude rules linked to completed schedules (approach (a) unless maintainers prefer (b)).
+3. Adjust any affected types.
+4. Add and update unit tests in loot-core covering the completed-schedule case.
+5. Verify the frontend (ManagePayees/PayeeTableRow) needs no change once the server count is correct.
 
 **Implement:** [Link to your branch/commits as you work]
 
-**Review:** [Self-review checklist - does it follow the project's contribution guidelines?]
+**Review:** Self-review against CONTRIBUTING.md. Run yarn typecheck, yarn lint:fix, and yarn test from the repo root before pushing. Add a release note via yarn generate:release-notes (category: Bugfix). Match the project's commit-message and PR conventions, and include Fixes #8134 in the PR description.
 
-**Evaluate:** [How will you verify it works?]
+**Evaluate:** Unit tests (below) plus manual verification using the reproduction steps, the previously inflated count now reads correctly.
 
 ---
 
