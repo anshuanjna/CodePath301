@@ -1,42 +1,44 @@
 # CodePath301
 
-# Contribution [#8134]: [Bug]: Payee page associated rules count includes completed schedules
+# Contribution [#3096]: [Bug]: [Test Failure] TC-00141: Files section appears to sort newest/oldest in the wrong order
 
-**Contribution Number:** #8134
+**Contribution Number:** #3096
 **Student:** Anshu Anjna
-**Issue:** https://github.com/actualbudget/actual/issues/8134
+**Issue:** https://github.com/openedx/frontend-app-authoring/issues/3096
 **Status:** Phase 2 - In Progress
 
 ---
 
 ## Why I Chose This Issue
 
-I choose this issue because it matching my skills, like it uses TypeScript, which I know through my coursework and projects. I was also drawn to the fact that the bug involves real data logic, specifically how the app queries and filters rules associated with payees, which connects to the data science concepts I've been studying. Actual Budget is also a well-maintained, community-driven project with active Discord support and monthly releases, which means I'll have a supportive environment to work through my first open source contribution.
+I choose this issue because it matching my skills, like it uses TypeScript and JS, which I know through my coursework and projects. Also the bug is about a date sort returning results in the wrong order and it seems was well-scoped for a first contribution, with the maintainer already narrowing it to two likely root causes (a reversed comparator, or the "Newest"/"Oldest" labels mapped to the wrong sort direction).
 
-This issue is a good fit for my learning goals because it will push me to understand how a real-world TypeScript/React codebase structures its data layer, specifically how rules and schedules relate to each other in the database. I'm hoping to walk away with a clearer understanding of how to trace a UI bug back to its source in a query or filter, and how to write a clean fix with proper testing.
+Openedx is also a well-maintained, community-driven project with active Discord support and monthly releases, which means I'll have a supportive environment to work through my first open source contribution. The maintainer confirmed they would assign the issue to me once I could set up the dev environment and reproduce the bug.
+
 
 ---
 
 ## Understanding the Issue
 
+
+
 ### Problem Description
 
-On the Payees page in Actual Budget, each payee shows a count of how many rules are associated with it. This count is wrong, it includes completed schedules, which are schedules that have already finished running. Completed schedules are no longer active, so they shouldn't be counted as associated rules. The bug was discovered when a user noticed some payees showed a rules count but had no actual rules attached when they clicked in to view them.
+The Files section in Course Authoring sorts files incorrectly when using the date-based sorting options. The date sort order appears reversed, or the "Newest"/"Oldest" labels appear mapped to the wrong sort direction.
 
 ### Expected Behavior
 
-The rules count shown next to each payee on the Payees page should only reflect active, non-completed rules. Completed schedules should be excluded from this count entirely.
+Sorting by Newest should place the most recently uploaded file at the top of the list.
+Sorting by Oldest should place the oldest uploaded file at the top of the list.
 
 ### Current Behavior
 
-The rules count incorrectly includes completed schedules. A user noticed some counts had no rules attached when viewing them, and after deleting a rule, the associated count dropped by more than expected, indicating completed schedules were being counted. This means the number shown is inflated and misleading.
+Sorting by Newest places the most recently uploaded file at the bottom of the list.
+Sorting by Oldest places the most recently uploaded file at the top of the list.
 
 ### Affected Components
 
-The bug lives in the data layer that computes the rules count for payees. Likely affected areas:
-
-The query or filter that fetches rules associated with a payee (probably in packages/loot-core/src/server/ — where Actual's backend data logic lives)
-Possibly the PayeeTable or ManagePayees component on the frontend that displays the count
+The Files & Uploads page within the course authoring MFE (the component(s) responsible for the file list and its date-sort dropdown).
 
 ---
 
@@ -44,30 +46,25 @@ Possibly the PayeeTable or ManagePayees component on the frontend that displays 
 
 ### Environment Setup
 
-I had to set up the Docker and install and login to it. 
-
-I also had to look into installing yarn, which I have never used and 
-when I tried running "npm install yarn", I got the error: "yarn: command not found." I asked claude to help me out and I had to run corepack enable after installing Node 22+, which makes the project's pinned Yarn available.
-
-I also tried to activate my virtual environment: source venv/bin/activate. But that failed because I realised that Actual Budget is a TypeScript/Node monorepo and doesn't use python virtual environment. 
+1. Forked and cloned openedx/frontend-app-authoring.
+2. Began local frontend setup: nvm use to match the Node version in .nvmrc, then npm install.
+3. Hit a fedx-scripts: command not found error on npm start, traced to an incomplete dependency install; resolved by doing a clean reinstall (rm -rf node_modules package-lock.json && npm install) on the correct Node version.
+4. Tutor (the recommended Open edX backend dev environment) setup is in progress to allow full UI reproduction.
 
 ### Steps to Reproduce
 
-1. Start Docker and open a budget file.
-2. Create an account and a payee
-3. Create a schedule for that payee, in the Schedules view, add a schedule, set its payee to "Tax Payment", and give it a near-term date with a limited or one-time recurrence so it can complete.
-4. Post the scheduled transaction(s) so the schedule moves to the Completed state. Confirm it shows as completed in the Schedules view.
-5. Confirm the payee has no manually-created rules: open the Rules view and verify there are none for "Tax Payment".
-6. Open the Payees page (Manage Payees) and observe the rule count next to "Tax Payment".
-7. Click into that payee's rules and compare the displayed count to the number of rules actually shown.
-8. Expected: The rule count is 0, because there are no active rules (the only associated rule belongs to a completed schedule).
-9. Actual: The rule count shows 1 (or one per completed schedule), even though clicking in reveals no rules.
+1. Go to Studio / Course Authoring.
+2. Open a course.
+3. Go to the Files section.
+4. Upload a new file and confirm it appears in the list.
+5. Change the sort option to Newest and check the new file's position.
+6. Change the sort option to Oldest and check the position again.
 
 ### Reproduction Evidence
 
-- **Commit showing reproduction:** https://github.com/anshuanjna/actual
+- **Commit showing reproduction:** 
 - **Screenshots/logs:** [If applicable]
-- **My findings:** The inflated count comes from the server, not the UI. The count is displayed in packages/desktop-client/src/components/payees/ManagePayees.tsx / PayeeTableRow.tsx via the ruleCount prop, but it is computed by a handler in packages/loot-core/src/server/. That handler counts all rules referencing a payee without excluding the hidden rules that back schedules. 
+- **My findings:** 
 
 ---
 
@@ -75,39 +72,28 @@ I also tried to activate my virtual environment: source venv/bin/activate. But t
 
 ### Analysis
 
-Schedules in Actual are implemented as hidden rules (each schedule has an associated rule carrying a link-schedule action that references the schedule's payee). The per-payee rule count computed on the server counts all rules referencing a payee and does not exclude rules belonging to schedules, in particular, rules belonging to completed schedules. As a result, a payee whose only associated rules are completed-schedule rules shows a non-zero count despite having no active, user-visible rules.
+
 
 ### Proposed Solution
 
-Modify the server-side rule-counting logic so it excludes rules linked to completed schedules. Two candidate approaches, I will confirm the intended behavior with maintainers on the issue before coding:
 
-(a) Exclude only rules linked to completed schedules (literal reading of the issue title).
-(b) Exclude all schedule-linked rules from the count (if schedule rules were never meant to appear in this count at all).
 
 ### Implementation Plan
 
 Using UMPIRE framework (adapted):
 
-**Understand:** The Payees page rule count is inflated because it counts the hidden rules that back completed schedules. Since schedules are implemented as rules in Actual, those rules are included in a payee's count even though the schedule is no longer active and the user sees no real rules. The count should reflect only active, user-relevant rules.
+**Understand:** 
 
-**Match:** link-schedule is the action type marking a rule as schedule-backed, find where Actual already distinguishes these rules elsewhere.
+**Match:** 
 
-2. packages/loot-core/src/shared/schedules.ts already contains schedule-status logic (including "completed"); reuse its definition of completed.
-
-3. Mirror the filtering style of the existing rule queries in loot-core/src/server/.
 
 **Plan:** [Step-by-step implementation plan]
-1. Locate the server handler in packages/loot-core/src/server/ that produces per-payee rule counts.
-2. Modify the query/aggregation to exclude rules linked to completed schedules (approach (a) unless maintainers prefer (b)).
-3. Adjust any affected types.
-4. Add and update unit tests in loot-core covering the completed-schedule case.
-5. Verify the frontend (ManagePayees/PayeeTableRow) needs no change once the server count is correct.
+1. 
 
 **Implement:** [Link to your branch/commits as you work]
 
-**Review:** Self-review against CONTRIBUTING.md. Run yarn typecheck, yarn lint:fix, and yarn test from the repo root before pushing. Add a release note via yarn generate:release-notes (category: Bugfix). Match the project's commit-message and PR conventions, and include Fixes #8134 in the PR description.
-
-**Evaluate:** Unit tests (below) plus manual verification using the reproduction steps, the previously inflated count now reads correctly.
+**Review:** 
+**Evaluate:** 
 
 ---
 
@@ -136,9 +122,9 @@ Using UMPIRE framework (adapted):
 
 My chosen issue is now closed due to someone else resolving the bug and now I'm trying to find a new issue and I'm hoping to find an issue that relates to my topics of interest: Biotech, AI in healh, and ML projects. Overall, couldn't do much this weekend as I'm trying to find an open issue, which is hard since a lot of them are taken or are issues with red flags. 
 
-### Week [Y] Progress
+### Week [4] Progress
 
-[Continue documenting as you work]
+I have found an issue and now I'm reproducing the issue and analyizing the possible solutions. 
 
 ### Code Changes
 
