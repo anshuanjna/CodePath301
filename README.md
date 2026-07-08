@@ -47,9 +47,14 @@ The Files & Uploads page within the course authoring MFE (the component(s) respo
 ### Environment Setup
 
 1. Forked and cloned openedx/frontend-app-authoring.
-2. Began local frontend setup: nvm use to match the Node version in .nvmrc, then npm install.
-3. Hit a fedx-scripts: command not found error on npm start, traced to an incomplete dependency install; resolved by doing a clean reinstall (rm -rf node_modules package-lock.json && npm install) on the correct Node version.
-4. Tutor (the recommended Open edX backend dev environment) setup is in progress to allow full UI reproduction.
+2. Matched the required Node version (Node 24) using nvm use with the repo's .nvmrc.
+3. Hit fedx-scripts: command not found on first run. Diagnosed as an incomplete dependency install; resolved with a clean reinstall.
+4. Hit an ERESOLVE peer-dependency conflict (oxlint vs oxlint-tsgolint). Resolved by restoring the repo's original package-lock.json and using npm ci (installs the exact locked dependency tree) instead of npm install.
+5. Installed Tutor (the official Docker-based Open edX dev environment) in a Python virtual environment and ran tutor dev launch.
+6. First launch failed at the MySQL initialization job — the database container was still initializing when the setup job timed out after 10 connection attempts.
+7. Later, the LMS returned connection resets. Diagnosed by reading the Django traceback in tutor dev logs lms: Table 'openedx.waffle_switch' doesn't exist — meaning migrations had never run because the interrupted launch never completed initialization.
+8. Re-ran tutor dev launch, allowing the full migration phase to complete. Platform initialized successfully with all services running (LMS, CMS/Studio, MFE server, MySQL, MongoDB, Redis, Meilisearch).
+10. Created a local superuser (tutor dev do createuser --staff --superuser) and imported the demo course (tutor dev do importdemocourse).
 
 ### Steps to Reproduce
 
@@ -62,9 +67,10 @@ The Files & Uploads page within the course authoring MFE (the component(s) respo
 
 ### Reproduction Evidence
 
-- **Commit showing reproduction:** 
-- **Screenshots/logs:** [If applicable]
-- **My findings:** 
+- **Commit showing reproduction:** I haven't yet sent a message to the Maintainer as I'm rechecking the issue. 
+- **Screenshots/logs:** This image shows my new file upload and when the filter is set to Newest, my file is on the top and later when the filer is set to Oldest, my file is on the bottom. <img width="1452" height="681" alt="Screenshot 2026-07-07 at 10 18 33 PM" src="https://github.com/user-attachments/assets/6667eb3c-10a5-4ae3-8d8c-1c5396c6867f" />
+
+- **My findings:** On my devstack, the bug did not reproduce. After uploading a new file: sorting by Newest correctly placed my file first; sorting by Oldest correctly placed it last. This is the expected (correct) behavior, not the buggy behavior described in the issue. My test ran against the MFE version packaged in Tutor's pre-built image (openedx-mfe:21.0.0-indigo), because my local repository was not yet bind-mounted at test time. The issue was filed against current development code during Verawood release testing, so this result does not yet confirm the bug is fixed on master.
 
 ---
 
@@ -124,7 +130,11 @@ My chosen issue is now closed due to someone else resolving the bug and now I'm 
 
 ### Week [4] Progress
 
-I have found an issue and now I'm reproducing the issue and analyizing the possible solutions. 
+Committed to #3096. Commented on the issue to claim it. the maintainer confirmed they would assign it to me once I reproduce it on a devstack. 
+
+### Week [5] Progress
+Completed the full Tutor devstack setup, including diagnosing and fixing two real failures: a MySQL initialization timeout on first launch, and a missing-migrations state (diagnosed from a Django ProgrammingError: Table 'openedx.waffle_switch' doesn't exist traceback in the LMS logs) fixed by re-running the launch to completion. Created an admin user, imported the demo course, and attempted reproduction. Result: the bug did not reproduce — sort behavior was correct on the version I tested. Identified that I tested Tutor's packaged release image rather than current master. I have to now bind-mount my repo and retesting on master before reporting findings to the maintainer.
+
 
 ### Code Changes
 
