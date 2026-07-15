@@ -5,7 +5,7 @@
 **Contribution Number:** #3096
 **Student:** Anshu Anjna
 **Issue:** https://github.com/openedx/frontend-app-authoring/issues/3096
-**Status:** Phase 2 - In Progress
+**Status:** Phase 3 - In Progress
 
 ---
 
@@ -67,36 +67,73 @@ The Files & Uploads page within the course authoring MFE (the component(s) respo
 
 ### Reproduction Evidence
 
-- **Commit showing reproduction:** I haven't yet sent a message to the Maintainer as I'm rechecking the issue. 
+- **Commit showing reproduction:** https://github.com/openedx/frontend-app-authoring/issues/3096 
+
+Hi @bradenmacdonald, I set up devstack and reproduced the issue. I also realized that the issue is more prevalent when the files are uploaded one after the other quickly(< 1 minute). I noticed that when I uploaded an file and waited for 5-10 minutes and then uploaded another file, the filtering was accurate and there were no issues. 
+
+For example, these files are under the Newest filter and this is following the correct guidelines. (I uploaded file1, file2, file3, respectively in that order).
+
+<img width="1460" height="634" alt="Image" src="https://github.com/user-attachments/assets/e58869d5-8b09-42bd-92cf-ec6eeb371e40" />
+
+But now, when I switch the filter settings to Oldest, the files got scrambled, but they are all located at the bottom of the list. 
+<img width="1443" height="311" alt="Image" src="https://github.com/user-attachments/assets/b9042684-9039-4fda-92bd-af6c866c157f" />
+
+
+And when I went back to the filter setting of Newest, the files came to the top but were also scrambled. 
+<img width="1465" height="648" alt="Image" src="https://github.com/user-attachments/assets/d34f49e9-547f-4d21-a84a-7151dd5070b2" />
+
+Another issue is that when the filering is set to Oldest and then a new file is uploaded, the file is at the top of the list, even though it should be on the bottom. But after changing the filtering setting, the file is in the correct position. Example: 
+
+<img width="1463" height="739" alt="Image" src="https://github.com/user-attachments/assets/9ebe3950-35c3-478b-b9a8-d7e535328d58" />
+
+Overall, I understand the issue reproduction and will be working on the solution to this problem. I'll take a look at possible solutions and also write additional unit tests. Thank you! Let me know if there is anything else I should look into for this issue! 
+
 - **Screenshots/logs:** This image shows my new file upload and when the filter is set to Newest, my file is on the top and later when the filer is set to Oldest, my file is on the bottom. <img width="1452" height="681" alt="Screenshot 2026-07-07 at 10 18 33 PM" src="https://github.com/user-attachments/assets/6667eb3c-10a5-4ae3-8d8c-1c5396c6867f" />
 
-- **My findings:** On my devstack, the bug did not reproduce. After uploading a new file: sorting by Newest correctly placed my file first; sorting by Oldest correctly placed it last. This is the expected (correct) behavior, not the buggy behavior described in the issue. My test ran against the MFE version packaged in Tutor's pre-built image (openedx-mfe:21.0.0-indigo), because my local repository was not yet bind-mounted at test time. The issue was filed against current development code during Verawood release testing, so this result does not yet confirm the bug is fixed on master.
+- **My findings:** The bug isn't exactly as defined by the maintainers because the bug is more present if the files are uploaded quickly and without much wait time between uploads(< 1 min). Also since the site doesn't reload after each upload, after changing the filter settings from Newest to Oldest and vice versa, the order of the files are messed up in terms of which file you uploaded first for the most recent uploads. the bug doesn't seem to affect the older uploaded files. The main problem is that the when the files are uploaded at the same time, then they can interchange the order they are in. 
 
 ---
 
 ## Solution Approach
 
 ### Analysis
+The actual bug is: the upload timestamp is only stored and compared at hour:minute, not down to the second. When two or more files are uploaded within the same minute, they receive identical sort keys. Since there's no secondary tiebreaker, the sort order between those tied files is not guaranteed to be consistent, so when the list re-sorts (toggling between Newest and Oldest, or after a new upload triggers a re-render), files with matching timestamps can swap positions relative to each other.
+This explains every specific symptom from the original report:
 
+Files uploaded minutes apart (outside the same hour:minute window) never had the problem. 
 
 
 ### Proposed Solution
+Add a deterministic secondary sort key so files with identical hour:minute timestamps always resolve to the same, correct relative order:
 
+Preferred: compare timestamps at full precision (down to seconds/milliseconds) if that data is available anywhere in the upload metadata, rather than truncating to hour:minute.
+Fallback/supplement: if full-precision timestamps aren't available or reliable, use a stable secondary key, file id, or upload sequence/insertion order, as a tiebreaker in the comparator whenever primary timestamps are equal. This guarantees the sort is deterministic (same input always produces same output) regardless of how many files share a timestamp.
+Either approach eliminates the swap-on-re-render behavior, since ties will no longer exist for the comparator to resolve inconsistently.
 
 
 ### Implementation Plan
 
 Using UMPIRE framework (adapted):
 
-**Understand:** 
+**Understand:** Files uploaded within the same hour:minute window share an identical sort key. With no tiebreaker, the relative order between tied files is unstable across re-sorts/re-renders, causing them to visibly swap positions. 
 
-**Match:** 
+**Match:** This is a standard "insufficient sort key precision / missing tiebreaker" bug. the same pattern behind many list-ordering bugs where multiple items share a coarse key. The fix (finer-grained comparison, or a stable secondary key) is a common pattern.
 
 
 **Plan:** [Step-by-step implementation plan]
-1. 
+1. Locate the date/sort comparator for the Files & Uploads list (via grep -rn "dateAdded" src/files-and-videos/ and the sort-related files found from grep -rni "sortBy|sortType|sortable"), and confirm exactly where the hour:minute truncation happens. API response shape, a formatting/display step, or the comparator itself.
+   
+2. Check whether the underlying API already returns full-precision (seconds/ms) timestamps that are simply being truncated client-side before comparison, versus the truncation happening upstream (in which case a client-only secondary key is the right fix).
 
-**Implement:** [Link to your branch/commits as you work]
+3. Write a failing unit test: seed multiple files with timestamps identical to the minute, assert that sorting Newest/Oldest produces a consistent, deterministic order across repeated sort calls.
+
+4. Implement the fix, full-precision comparison if available, otherwise a stable secondary key (file id / insertion order) added to the comparator.
+   
+5.Re-run the manual reproduction (upload several files within the same minute, toggle Newest/ Oldest repeatedly) to confirm the order no longer changes between toggles.
+
+6.Add the passing regression test alongside existing sort tests, and update/close out the maintainer comment on #3096 with this precise root cause and fix.
+
+**Implement:** https://github.com/anshuanjna/frontend-app-authoring 
 
 **Review:** 
 **Evaluate:** 
@@ -134,6 +171,10 @@ Committed to #3096. Commented on the issue to claim it. the maintainer confirmed
 
 ### Week [5] Progress
 Completed the full Tutor devstack setup, including diagnosing and fixing two real failures: a MySQL initialization timeout on first launch, and a missing-migrations state (diagnosed from a Django ProgrammingError: Table 'openedx.waffle_switch' doesn't exist traceback in the LMS logs) fixed by re-running the launch to completion. Created an admin user, imported the demo course, and attempted reproduction. Result: the bug did not reproduce — sort behavior was correct on the version I tested. Identified that I tested Tutor's packaged release image rather than current master. I have to now bind-mount my repo and retesting on master before reporting findings to the maintainer.
+
+### Week [6] Progress
+Understood the issue better and found a rough solution to follow through and now i have to implemenent the solution. 
+
 
 
 ### Code Changes
