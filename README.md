@@ -126,16 +126,16 @@ Using UMPIRE framework (adapted):
 2. Check whether the underlying API already returns full-precision (seconds/ms) timestamps that are simply being truncated client-side before comparison, versus the truncation happening upstream (in which case a client-only secondary key is the right fix).
 
 3. Write a failing unit test: seed multiple files with timestamps identical to the minute, assert that sorting Newest/Oldest produces a consistent, deterministic order across repeated sort calls.
-
-4. Implement the fix, full-precision comparison if available, otherwise a stable secondary key (file id / insertion order) added to the comparator.
    
 5.Re-run the manual reproduction (upload several files within the same minute, toggle Newest/ Oldest repeatedly) to confirm the order no longer changes between toggles.
 
-6.Add the passing regression test alongside existing sort tests, and update/close out the maintainer comment on #3096 with this precise root cause and fix.
+6.Add the passing regression test alongside existing sort tests
 
 **Implement:** https://github.com/anshuanjna/frontend-app-authoring 
 
 **Review:** 
+
+
 **Evaluate:** 
 
 ---
@@ -174,6 +174,10 @@ Completed the full Tutor devstack setup, including diagnosing and fixing two rea
 
 ### Week [6] Progress
 Understood the issue better and found a rough solution to follow through and now i have to implemenent the solution. 
+
+### Week [7] Progress
+Stil working on solving the issue.
+
 
 
 
