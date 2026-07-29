@@ -178,6 +178,9 @@ Understood the issue better and found a rough solution to follow through and now
 ### Week [7] Progress
 Stil working on solving the issue.
 
+### Week [8] Progress
+I'm still working on the solution. I have found where to change and edit the code, but I was traveling last week so couldn't work on the assignment. 
+
 
 
 
