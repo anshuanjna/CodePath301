@@ -144,14 +144,14 @@ Using UMPIRE framework (adapted):
 
 ### Unit Tests
 
-- [ ] Test case 1: [Description]
-- [ ] Test case 2: [Description]
+- [ ] Test case 1: Same-minute uploads produce a consistent relative order across both Newest and Oldest sort directions (tiebreaker regression test).
+- [ ] Test case 2: Files with distinct timestamps sort correctly regardless of which weekday they fall on (chronological/.getTime() regression test).
 - [ ] Test case 3: [Description]
 
 ### Integration Tests
 
-- [ ] Integration scenario 1
-- [ ] Integration scenario 2
+- [ ] Integration scenario 1 - Upload multiple files within the same minute in the running app, toggle Newest/Oldest repeatedly, confirm order no longer changes between toggles.
+- [ ] Integration scenario 2 - Upload a file weeks apart from existing files (spanning different weekdays), confirm chronological order is correct in both sort directions. Manual Testing Manually reproduced both bugs in devstack: confirmed same-minute files scrambling on sort-direction toggle (Root Cause #1), and confirmed newly uploaded files (file5, file6) sorting as "oldest" despite being most recent, traced to weekday-string comparison (Root Cause #2). Verified reverting the in-progress tiebreaker fix did not resolve the second issue, confirming it as a separate, pre-existing bug. Applied .getTime() fix and confirmed correct ordering afterward.
 
 ### Manual Testing
 
@@ -181,12 +181,15 @@ Stil working on solving the issue.
 ### Week [8] Progress
 I'm still working on the solution. I have found where to change and edit the code, but I was traveling last week so couldn't work on the assignment. 
 
+### Week [9] Progress
+Implemented the tiebreaker fix in generic/utils.js (shared sort function used by both Files and Videos pages): replaced the .reverse()-based ascending sort with an independent comparator per direction, and added file.id as a secondary sort key so tied (same-minute) files stay in a consistent relative order across toggles. While manually re-testing this fix with newly uploaded files, discovered a second, unrelated bug: files uploaded on certain weekdays sorted out of chronological order relative to older files, even with the tiebreaker fix in place and even after reverting it — proving it was a separate, pre-existing issue. Traced this to files-page/data/utils.js converting timestamps with new Date(x).toString(), which puts the day-of-week abbreviation at the front of the string and causes alphabetical (not chronological) comparison. Fixed by switching to new Date(x).getTime(), which sorts on a plain numeric timestamp instead. Applied this fix to the Files page. Still need to verify/apply the equivalent fix on the Videos page (created.toString() in videos-page/data/utils.js) — initial research into edx-val's serializer suggests created may already arrive as ISO-8601 (safe to string-compare), but this needs confirmation via the browser Network tab before ruling it out.
 
 
 
 ### Code Changes
 
-- **Files modified:** [List]
+- **Files modified:** src/files-and-videos/generic/utils.js — rewrote sortFiles comparator (tiebreaker fix)
+src/files-and-videos/files-page/data/utils.js — changed date conversion from .toString() to .getTime() (chronological fix)
 - **Key commits:** [Links to important commits]
 - **Approach decisions:** [Why you chose certain approaches]
 
@@ -211,14 +214,17 @@ I'm still working on the solution. I have found where to change and edit the cod
 ### Technical Skills Gained
 
 [What you learned technically]
+I learned to distinguish between two superficially similar but independently-caused sorting bugs by isolating variables (reverting one fix to confirm the other issue was pre-existing rather than newly introduced). Learned the internals of Date.prototype.toString() vs .getTime() vs .toISOString() and why string-comparing formatted dates is fragile. Practiced tracing a frontend field (dateAdded/created) back through the API layer to a backend serializer to reason about data format rather than guessing.
 
 ### Challenges Overcome
 
 [What was hard and how you solved it]
+The second bug (weekday-string comparison) was easy to miss because it's not visible with a small, tightly-clustered set of test files — it only appears once uploads span multiple weekdays whose abbreviations sort "out of order" alphabetically. Diagnosing it required building a concrete counter-example rather than relying on visual inspection alone.
 
 ### What I'd Do Differently Next Time
 
 [Reflection on your process]
+I would test sorting behavior against a wider spread of dates (not just files uploaded minutes apart) earlier in the process, since the weekday-string bug would have been caught sooner with test data spanning multiple weeks/weekdays from the start.
 
 ---
 
