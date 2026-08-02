@@ -5,7 +5,7 @@
 **Contribution Number:** #3096
 **Student:** Anshu Anjna
 **Issue:** https://github.com/openedx/frontend-app-authoring/issues/3096
-**Status:** Phase 3 - Completed
+**Status:** Phase 4 - Completed
 
 ---
 
@@ -157,12 +157,12 @@ Self-reviewed both fixes primarily through manual testing rather than assuming p
 
 ### Manual Testing
 
-Reproduced the original tie-scrambling bug in devstack (Root Cause #1): uploaded files within the same minute, confirmed their order changed unpredictably when toggling Newest/Oldest repeatedly.
-Reproduced the weekday-string bug (Root Cause #2): uploaded new files (file5, file6) on a different day than earlier test files, confirmed they sorted as "oldest" despite being the most recently uploaded.
-Verified Root Cause #2 was a separate, pre-existing bug (not something my in-progress tiebreaker fix introduced) by reverting that fix and confirming the weekday issue persisted on its own.
-Applied the .getTime() fix and confirmed correct chronological ordering afterward.
-Uploaded two more files seconds apart (file8, file9) to specifically stress-test the tiebreaker: found that my first tiebreaker implementation kept the tied pair in the same relative order regardless of sort direction (e.g. file8 always above file9, even under Newest, where file9 should have been on top). Confirmed via repeated toggling (Newest → Oldest → Newest, several times) that this was a consistent wrong answer, not a return of the original random-scrambling bug — which correctly narrowed it down to the tiebreaker not respecting directionMultiplier, rather than a regression of Root Cause #1.
-After correcting the tiebreaker to multiply by directionMultiplier, re-tested file8/file9 and confirmed they now flip correctly along with the sort direction, and stay consistent across repeated toggling and page reloads.
+1. Reproduced the original tie-scrambling bug in devstack (Root Cause #1): uploaded files within the same minute, confirmed their order changed unpredictably when toggling Newest/Oldest repeatedly.
+2. Reproduced the weekday-string bug (Root Cause #2): uploaded new files (file5, file6) on a different day than earlier test files, confirmed they sorted as "oldest" despite being the most recently uploaded.
+3. Verified Root Cause #2 was a separate, pre-existing bug (not something my in-progress tiebreaker fix introduced) by reverting that fix and confirming the weekday issue persisted on its own.
+4. Applied the .getTime() fix and confirmed correct chronological ordering afterward.
+5. Uploaded two more files seconds apart (file8, file9) to specifically stress-test the tiebreaker: found that my first tiebreaker implementation kept the tied pair in the same relative order regardless of sort direction (e.g. file8 always above file9, even under Newest, where file9 should have been on top). Confirmed via repeated toggling (Newest → Oldest → Newest, several times) that this was a consistent wrong answer, not a return of the original random-scrambling bug — which correctly narrowed it down to the tiebreaker not respecting directionMultiplier, rather than a regression of Root Cause #1.
+6. After correcting the tiebreaker to multiply by directionMultiplier, re-tested file8/file9 and confirmed they now flip correctly along with the sort direction, and stay consistent across repeated toggling and page reloads.
 
 ---
 
@@ -230,7 +230,7 @@ Applied directionMultiplier to the tiebreaker rather than leaving it direction-i
 **PR Description:** 
 This PR fixes two bugs in the Files & Uploads date sorting (issue #3096) - [Test Failure] TC-00141: Files section appears to sort newest/oldest in the wrong order. One important update, I had earlier mentioned that I noticed a another bug in my previous message to the maintainer, but afterwards, I noticed the original bug that was described by the maintainer as well. So I have fixed both bugs:
 
-1(the bug described by maintainer). Weekday-first string comparison: updateFileValues (in files-page/data/utils.js) converted the upload timestamp with new Date(utcDateString).toString(), which produces a string starting with the day-of-week abbreviation (e.g. "Tue Jun 02 2026..."). sortFiles compared these as plain strings, which meant sorting was effectively alphabetizing by weekday name rather than sorting chronologically, so files could sort in the wrong order once uploads spanned multiple weekdays. Fixed by switching to new Date(utcDateString).getTime(), a plain numeric epoch timestamp with no formatting left to misread.
+1. (the bug described by maintainer) Weekday-first string comparison: updateFileValues (in files-page/data/utils.js) converted the upload timestamp with new Date(utcDateString).toString(), which produces a string starting with the day-of-week abbreviation (e.g. "Tue Jun 02 2026..."). sortFiles compared these as plain strings, which meant sorting was effectively alphabetizing by weekday name rather than sorting chronologically, so files could sort in the wrong order once uploads spanned multiple weekdays. Fixed by switching to new Date(utcDateString).getTime(), a plain numeric epoch timestamp with no formatting left to misread.
 
 2. Missing tiebreaker for same-minute uploads: sortFiles (in generic/utils.js) previously computed one descending sort and derived "ascending" by calling .reverse() on the whole array. .reverse() has no concept of which items were tied on the sort key, so files uploaded within the same minute (identical timestamp) could swap relative positions unpredictably every time the sort direction was toggled or a new file triggered a re-render. Fixed by computing each direction independently (via a directionMultiplier) and adding file.id as a secondary, direction-aware tiebreaker, so tied files now resolve to a deterministic, direction-consistent order, so they flip along with the rest of the list instead of scrambling.
 
@@ -303,6 +303,6 @@ I would test sorting behavior against a wider spread of dates (not just files up
 
 ## Resources Used
 
-- [Link to helpful documentation]
-- [Tutorial or Stack Overflow post that helped]
-- [GitHub issues or discussions that helped]
+- https://docs.openedx.org/en/latest/developers/quickstarts/so_you_want_to_contribute.html 
+- Use Claude code for help in understanding codebase and help in writing the unit tests. 
+- https://github.com/openedx/frontend-app-authoring/issues/3096
