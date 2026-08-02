@@ -227,7 +227,52 @@ Applied directionMultiplier to the tiebreaker rather than leaving it direction-i
 
 **PR Link:** [GitHub PR URL when submitted]
 
-**PR Description:** [Draft or final PR description - much of the content above can be adapted]
+**PR Description:** 
+This PR fixes two bugs in the Files & Uploads date sorting (issue #3096) - [Test Failure] TC-00141: Files section appears to sort newest/oldest in the wrong order. One important update, I had earlier mentioned that I noticed a another bug in my previous message to the maintainer, but afterwards, I noticed the original bug that was described by the maintainer as well. So I have fixed both bugs:
+
+1(the bug described by maintainer). Weekday-first string comparison: updateFileValues (in files-page/data/utils.js) converted the upload timestamp with new Date(utcDateString).toString(), which produces a string starting with the day-of-week abbreviation (e.g. "Tue Jun 02 2026..."). sortFiles compared these as plain strings, which meant sorting was effectively alphabetizing by weekday name rather than sorting chronologically, so files could sort in the wrong order once uploads spanned multiple weekdays. Fixed by switching to new Date(utcDateString).getTime(), a plain numeric epoch timestamp with no formatting left to misread.
+
+2. Missing tiebreaker for same-minute uploads: sortFiles (in generic/utils.js) previously computed one descending sort and derived "ascending" by calling .reverse() on the whole array. .reverse() has no concept of which items were tied on the sort key, so files uploaded within the same minute (identical timestamp) could swap relative positions unpredictably every time the sort direction was toggled or a new file triggered a re-render. Fixed by computing each direction independently (via a directionMultiplier) and adding file.id as a secondary, direction-aware tiebreaker, so tied files now resolve to a deterministic, direction-consistent order, so they flip along with the rest of the list instead of scrambling.
+
+
+
+User roles impacted: Course Author (anyone using the Files & Uploads page to sort/manage course files by date(Newest or Oldest toggle option).
+
+Screenshots:
+Before (when bug was present): 
+This shows that when file 3 was uploaded and the sorting method was Oldest, this file was on top, which is wrong as it should be all the way in the bottom: 
+<img width="876" height="440" alt="Screenshot 2026-08-02 at 4 36 46 PM" src="https://github.com/user-attachments/assets/f422c799-563d-47d5-a6d0-53e5ca4304f3" />
+
+The 2nd bug shows that on the "Newest" sorting method, the files were switching between each other. The expected result should have been from top to bottom: file 3, file 2, file 1. 
+<img width="872" height="379" alt="Screenshot 2026-08-02 at 4 38 25 PM" src="https://github.com/user-attachments/assets/a4fb9bf1-1979-41d4-a46d-be999cde224c" />
+
+After the solution: 
+This shows that all my previous and new uploads are correct and in the Newest sorting method, all the files are in the correct order:
+<img width="1430" height="791" alt="Screenshot 2026-08-02 at 4 40 36 PM" src="https://github.com/user-attachments/assets/79a057e0-0e01-4b3a-8eac-defcfc165d53" />
+
+On the Oldest sorting method, all the files are correctly reversed. File 9 was the most newest upload, so it should be last when sorting with the Oldest method:
+<img width="1454" height="794" alt="Screenshot 2026-08-02 at 4 42 06 PM" src="https://github.com/user-attachments/assets/fc31dc20-dfef-4387-9179-63c18a568f49" />
+
+
+Supporting information
+Issue: https://github.com/openedx/frontend-app-authoring/issues/3096
+
+Testing instructions
+1. Pull this branch. Start devstack with tutor dev start -d (containers are already provisioned from initial setup; tutor dev launch is only needed the first time or after a full reset). Make sure docker is set up and running as well. 
+2. Go to Studio → a course → Files & Uploads.
+3. Upload two files within the same minute (upload one immediately after the other).
+4. Open the Sort & Filter modal, select "Newest," apply. Note the order of the two same-minute files.
+5. Re-open the modal, select "Oldest," apply. Confirm the two same-minute files have swapped positions with each other in a way that mirrors every other file's behavior (i.e., Oldest is the exact reverse of Newest), and that repeating this toggle several times always produces the same result.
+6. Upload a file, then upload another file on a different day (or manually adjust test data) so the two files fall on different weekdays. Sort Newest — confirm the actual most-recently-uploaded file appears first, regardless of which weekday it falls on. Sort Oldest — confirm the reverse.
+7. Automated coverage: npx fedx-scripts jest src/files-and-videos/generic/utils.test.js src/files-and-videos/files-page/data/utils.test.js src/files-and-videos/files-page/FilesPage.sort.test.jsx
+
+
+Other information
+ - Does this change depend on other changes elsewhere? No.
+ - Special concerns / limitations:
+      - The file.id-based tiebreaker guarantees deterministic, direction-consistent ordering for same-minute uploads, but does not guarantee the order matches true upload sequence (asset IDs aren't a chronological sequence field). A backend change (sub-minute timestamp precision, or an explicit sequence number) would be needed to fully resolve tie-ordering by true upload time — flagging as a possible follow-up issue rather than something this PR claims to solve.
+      - This PR addresses the Files page only; the Videos page uses similar date-handling code but was not investigated as part of this fix.
+      - The integration test (FilesPage.sort.test.jsx) covers the default gallery/card view only; the alternate list/table view has not been separately verified.
 
 **Maintainer Feedback:**
 - [Date]: [Summary of feedback received]
