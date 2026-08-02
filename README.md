@@ -5,7 +5,7 @@
 **Contribution Number:** #3096
 **Student:** Anshu Anjna
 **Issue:** https://github.com/openedx/frontend-app-authoring/issues/3096
-**Status:** Phase 4 - Completed
+**Status:** Phase 3 - Completed
 
 ---
 
