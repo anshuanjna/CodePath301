@@ -213,7 +213,8 @@ src/files-and-videos/generic/utils.js — rewrote the sortFiles comparator: repl
 4. src/files-and-videos/files-page/data/utils.js — changed date conversion from .toString() to .getTime() (chronological fix)
 5. src/files-and-videos/files-page/FilesPage.sort.test.jsx (new file, integration test) — renders the real FilesPage component (not just the sort function in isolation) with a 4-file fixture combining both bug scenarios (a same-minute tied pair, and a genuinely-older/newer pair spanning weekdays whose abbreviations sort "backwards"), clicks through the real Sort & Filter modal exactly as a user would, and asserts the actual rendered card order in the DOM. Confirms: the newer-weekday file renders before the older one under Newest (and reversed under Oldest); the tied pair's order flips consistently between directions; and toggling back to Newest a second time reproduces the same tied order as the first time. Passed on first real run against the fixed code (PASS src/files-and-videos/files-page/FilesPage.sort.test.jsx, 1 test, 1.77s).
 
-- **Key commits:** [Links to important commits]
+- **Key commits:** https://github.com/openedx/frontend-app-authoring/pull/3184
+- https://github.com/anshuanjna/frontend-app-authoring/commits/sorting_error (the top 2 commits are by me)
 - **Approach decisions:**
 Chose .getTime() over .toISOString() for the chronological fix. Both would have technically fixed the weekday-string bug (ISO strings sort correctly as text), but .getTime() returns a plain number, which removes string formatting from the comparison entirely rather than trading one string format for another — a smaller, more unambiguous surface area to reason about, and it can't be broken again by a future formatting change upstream.
 
@@ -225,7 +226,7 @@ Applied directionMultiplier to the tiebreaker rather than leaving it direction-i
 
 ## Pull Request
 
-**PR Link:** [GitHub PR URL when submitted]
+**PR Link:** https://github.com/openedx/frontend-app-authoring/pull/3184
 
 **PR Description:** 
 This PR fixes two bugs in the Files & Uploads date sorting (issue #3096) - [Test Failure] TC-00141: Files section appears to sort newest/oldest in the wrong order. One important update, I had earlier mentioned that I noticed a another bug in my previous message to the maintainer, but afterwards, I noticed the original bug that was described by the maintainer as well. So I have fixed both bugs:
@@ -274,7 +275,7 @@ Other information
       - This PR addresses the Files page only; the Videos page uses similar date-handling code but was not investigated as part of this fix.
       - The integration test (FilesPage.sort.test.jsx) covers the default gallery/card view only; the alternate list/table view has not been separately verified.
 
-**Maintainer Feedback:**
+**Maintainer Feedback:** I haven't received anything yet from the maintainers. 
 - [Date]: [Summary of feedback received]
 - [Date]: [How you addressed it]
 
