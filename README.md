@@ -275,11 +275,21 @@ Other information
       - This PR addresses the Files page only; the Videos page uses similar date-handling code but was not investigated as part of this fix.
       - The integration test (FilesPage.sort.test.jsx) covers the default gallery/card view only; the alternate list/table view has not been separately verified.
 
-**Maintainer Feedback:** I haven't received anything yet from the maintainers. 
-- [Date]: [Summary of feedback received]
-- [Date]: [How you addressed it]
+**Maintainer Feedback:** 
+- Aug 6th, 2026: Four pieces of feedback: (bradenmacdonald, PR #3184 review): 
+    - Changing dateAdded from a string to a number (via .getTime()) could break other places in the codebase that still expect it to be a string
+specifically flagged InfoModal.jsx, which has dateAdded: PropTypes.string.isRequired. Asked me to check every place dateAdded is used and confirm the type change is safe everywhere, not just in the sort path.
+   - Remove the explanatory "old code" / "here's what I changed and why" comments from files-page/data/utils.js as that belongs in the PR description, not permanently embedded in the source.
+   - In generic/utils.js, replace the vague phrase "the bug report" in a comment with a link to the actual GitHub issue, so future readers have context.
+   - Rename the three new test files (generic/utils.test.js, files-page/data/utils.test.js, files-page/FilesPage.sort.test.jsx) to TypeScript (.test.ts/.test.tsx). the repo requires all new files to be TypeScript, even though the existing source files they test remain .js for now.
 
-**Status:** Awaiting review 
+- In progress: How I addressed it:
+   - Auditing every usage of dateAdded across files-and-videos/ to confirm nothing else assumes it's a string; updating InfoModal.jsx's PropTypes accordingly.
+   - Stripped the "old code" / narrative comments from files-page/data/utils.js, keeping only forward-looking comments that explain current behavior.
+   - Replaced "the bug report" with a direct link to issue #3096 in the generic/utils.js tiebreaker comment.
+   - Renaming the three test files to .ts/.tsx. Since these files import from untyped .js source (generic/utils.js, files-page/data/utils.js), and the project's strict: true tsconfig throws a real TS7016 error on that import otherwise, added a small .d.ts declaration file next to each .js source file (generic/utils.d.ts, files-page/data/utils.d.ts) describing just the exported function shapes, which solves the type error without having to do a full conversion of the source files themselves.
+
+**Status:** Working on the changes requested by maintainer 
 
 ---
 
